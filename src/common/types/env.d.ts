@@ -14,5 +14,6 @@ namespace NodeJS {
         // secret
         COOKIE_SECRET: string
         OTP_TOKEN_SECRET: string
+        ACCESS_TOKEN_SECRET: string
     }
 }
