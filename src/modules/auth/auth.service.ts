@@ -7,8 +7,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { UserEntity } from '../user/entities/user.entity';
 import { Repository } from 'typeorm';
 import { ProfileEntity } from '../user/entities/profile.entity';
-import e from 'express';
 import { AuthtMessage, BadRequestMessage } from 'src/common/enums/message.enum';
+import { OtpEntity } from '../user/entities/otp.entity';
+import { randomInt } from 'crypto';
+import { TokensService } from './tokens.service';
 
 @Injectable()
 export class AuthService {
@@ -16,6 +18,8 @@ export class AuthService {
     constructor(
         @InjectRepository(UserEntity) private userRepository: Repository<UserEntity>,
         @InjectRepository(ProfileEntity) private profileRepository: Repository<ProfileEntity>,
+        @InjectRepository(OtpEntity) private otpRepository: Repository<OtpEntity>,
+        private tokenService: TokensService,
     ) { }
 
 
@@ -40,18 +44,68 @@ export class AuthService {
         const validUsername = this.usernameValidator(method, username)
         const user = await this.checkExistUser(method, validUsername)
         if (!user) throw new UnauthorizedException(AuthtMessage.NotFoundAccount)
+        const otp = await this.saveOtp(user.id)
+        user.otpId = otp.id
+        await this.userRepository.save(user)
+        return {
+            // message: PublicMessage.SendOtp,
+            userId: user.id,
+            code: otp.code
+        }
     }
 
     async register(method: AuthMethod, username: string) {
         const validUsername = this.usernameValidator(method, username)
-        const user = await this.checkExistUser(method, validUsername)
+        let user = await this.checkExistUser(method, validUsername)
         if (user) throw new ConflictException(AuthtMessage.AlreadyExistAccount)
+
+        if (method === AuthMethod.Username) {
+            throw new BadRequestException(BadRequestMessage.InValidRegisterData)
+        }
+
+        user = this.userRepository.create({
+            [method]: username,
+        })
+
+        user = await this.userRepository.save(user)
+        user.username = `m_${user.id}`
+        await this.userRepository.save(user)
+        const otp = await this.saveOtp(user.id)
+        user.otpId = otp.id
+        await this.userRepository.save(user)
+
+        return {
+            userId: user.id,
+            code: otp.code
+        }
     }
 
     async checkOtp() { }
 
+    async saveOtp(userId: number) {
+        const code = randomInt(10000, 99999).toString()
+        const expires_in = new Date(Date.now() + 2 * 60000) // 2 minutes from now
+        let otp = await this.otpRepository.findOneBy({ userId })
+        let existOtp = false
+
+        if (otp) {
+            existOtp = true
+            otp.code = code
+            otp.expires_in = expires_in
+        } else {
+            otp = this.otpRepository.create({ code, expires_in, userId })
+        }
+
+        otp = await this.otpRepository.save(otp)
+        if (!existOtp) {
+            await this.userRepository.update(userId, { otpId: otp.id })
+        }
+        return otp
+        //send [SMS, Email] OtpCode
+    }
+
     async checkExistUser(method: AuthMethod, username: string) {
-        let user: UserEntity | null = null
+        let user: UserEntity | null = null;
 
         if (method === AuthMethod.Phone) {
             user = await this.userRepository.findOneBy({ phone: username })
@@ -83,4 +137,6 @@ export class AuthService {
                 throw new UnauthorizedException("اطلاعات فرستاده شده صحیح نیست")
         }
     }
+
+
 }
