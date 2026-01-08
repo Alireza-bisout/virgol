@@ -11,6 +11,7 @@ export enum AuthtMessage {
     ExpiredCode = "کد ارسال شده منقضی شده است",
     TryAgain = "لطفا مجددا تلاش کنید",
     LoginAgain = "مجددا وارد  حساب کاربری شوید",
+    LoginIsRequired = "ورود به حساب کاربری الزامی است",
 }
 
 export enum NotFoundtMessage {

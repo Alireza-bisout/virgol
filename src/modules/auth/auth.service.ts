@@ -155,6 +155,13 @@ export class AuthService {
         return user
     }
 
+    async validateAccessToken(token: string) {
+        const { userId } = this.tokenService.verifyAccessToken(token)
+        const user = await this.userRepository.findOneBy({ id: userId })
+        if (!user) throw new UnauthorizedException(AuthtMessage.LoginAgain)
+        return user
+    }
+
     usernameValidator(method: AuthMethod, username: string) {
         switch (method) {
             case AuthMethod.Email:
