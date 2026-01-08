@@ -8,7 +8,9 @@ export enum BadRequestMessage {
 export enum AuthtMessage {
     NotFoundAccount = "حساب کاربری یافت نشد",
     AlreadyExistAccount = "حساب کاربری از قبل وجود دارد",
-    ExpiredCode="کد ارسال شده منقضی شده است",
+    ExpiredCode = "کد ارسال شده منقضی شده است",
+    TryAgain = "لطفا مجددا تلاش کنید",
+    LoginAgain = "مجددا وارد  حساب کاربری شوید",
 }
 
 export enum NotFoundtMessage {
@@ -16,5 +18,9 @@ export enum NotFoundtMessage {
 }
 
 export enum ValidationMessage {
+}
 
+export enum PublicMessage {
+    SentOtp = "کد ارسال شده به شما",
+    LoggedIn = "ورود با موفقیت انجام شد",
 }

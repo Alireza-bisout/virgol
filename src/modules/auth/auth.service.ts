@@ -7,7 +7,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { UserEntity } from '../user/entities/user.entity';
 import { Repository } from 'typeorm';
 import { ProfileEntity } from '../user/entities/profile.entity';
-import { AuthtMessage, BadRequestMessage } from 'src/common/enums/message.enum';
+import { AuthtMessage, BadRequestMessage, PublicMessage } from 'src/common/enums/message.enum';
 import { OtpEntity } from '../user/entities/otp.entity';
 import { randomInt } from 'crypto';
 import { TokensService } from './tokens.service';
@@ -125,7 +125,17 @@ export class AuthService {
     async checkOtp(code: string) {
         const token = this.request.cookies?.[CookieKeys.OTP]
         if (!token) new UnauthorizedException(AuthtMessage.ExpiredCode)
-        return token
+        const { userId } = this.tokenService.verifyOtpToken(token)
+        const otp = await this.otpRepository.findOne({
+            where: { userId }
+        })
+        if (!otp) throw new UnauthorizedException(AuthtMessage.TryAgain)
+        const now = new Date()
+        if (otp.expires_in < now) throw new UnauthorizedException(AuthtMessage.ExpiredCode)
+        if (otp.code !== code) throw new UnauthorizedException(AuthtMessage.LoginAgain)
+        return {
+            message: PublicMessage.LoggedIn
+        }
     }
 
     async checkExistUser(method: AuthMethod, username: string) {
