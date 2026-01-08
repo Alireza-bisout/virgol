@@ -1,7 +1,7 @@
 import { Body, Controller, Post, Res } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { ApiConsumes, ApiTags } from '@nestjs/swagger';
-import { AuthDto } from './dto/auth.dto';
+import { AuthDto, CheckOtpDto } from './dto/auth.dto';
 import { SwaggerConsumes } from 'src/common/enums/swagger-consume.enums';
 import type { Response } from 'express';
 import { CookieKeys } from 'src/common/enums/cookie.enum';
@@ -15,6 +15,13 @@ export class AuthController {
   @ApiConsumes(SwaggerConsumes.UrlEncoded, SwaggerConsumes.Json)
   userExistence(@Body() authDto: AuthDto, @Res() res: Response) {
     return this.authService.userExistence(authDto, res);
-
   }
+  
+  @Post('/check-otp')
+  @ApiConsumes(SwaggerConsumes.UrlEncoded, SwaggerConsumes.Json)
+  checkOtp(@Body() checkOtpDto: CheckOtpDto) {
+    return this.authService.checkOtp(checkOtpDto.code);
+  }
+
+
 }

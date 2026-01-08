@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Inject, Injectable, Scope, UnauthorizedException } from '@nestjs/common';
 import { AuthDto } from './dto/auth.dto';
 import { AuthType } from './enums/type.enums';
 import { AuthMethod } from './enums/method.enums';
@@ -11,22 +11,24 @@ import { AuthtMessage, BadRequestMessage } from 'src/common/enums/message.enum';
 import { OtpEntity } from '../user/entities/otp.entity';
 import { randomInt } from 'crypto';
 import { TokensService } from './tokens.service';
-import { Response } from 'express';
+import express from 'express';
 import { CookieKeys } from 'src/common/enums/cookie.enum';
 import { AuthResponse } from './types/response';
+import { REQUEST } from '@nestjs/core';
 
-@Injectable()
+@Injectable({ scope: Scope.REQUEST })
 export class AuthService {
 
     constructor(
         @InjectRepository(UserEntity) private userRepository: Repository<UserEntity>,
         @InjectRepository(ProfileEntity) private profileRepository: Repository<ProfileEntity>,
         @InjectRepository(OtpEntity) private otpRepository: Repository<OtpEntity>,
+        @Inject(REQUEST) private request: express.Request,
         private tokenService: TokensService,
     ) { }
 
 
-    async userExistence(authDto: AuthDto, res: Response) {
+    async userExistence(authDto: AuthDto, res: express.Response) {
         const { method, type, username } = authDto
         let result: AuthResponse
         switch (type) {
@@ -59,9 +61,12 @@ export class AuthService {
         }
     }
 
-    async sendResponse(res: Response, result: AuthResponse) {
+    async sendResponse(res: express.Response, result: AuthResponse) {
         const { token, code } = result
-        res.cookie(CookieKeys.OTP, token, { httpOnly: true })
+        res.cookie(CookieKeys.OTP, token, {
+            httpOnly: true,
+            expires: new Date(Date.now() + 2 * 60000), // 2 minutes
+        })
         res.json({
             // message: PublicMessage.SendOtp
             code
@@ -95,8 +100,6 @@ export class AuthService {
         }
     }
 
-    async checkOtp() { }
-
     async saveOtp(userId: number) {
         const code = randomInt(10000, 99999).toString()
         const expires_in = new Date(Date.now() + 2 * 60000) // 2 minutes from now
@@ -117,6 +120,12 @@ export class AuthService {
         }
         return otp
         //send [SMS, Email] OtpCode
+    }
+
+    async checkOtp(code: string) {
+        const token = this.request.cookies?.[CookieKeys.OTP]
+        if (!token) new UnauthorizedException(AuthtMessage.ExpiredCode)
+        return token
     }
 
     async checkExistUser(method: AuthMethod, username: string) {

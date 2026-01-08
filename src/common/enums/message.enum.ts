@@ -8,6 +8,7 @@ export enum BadRequestMessage {
 export enum AuthtMessage {
     NotFoundAccount = "حساب کاربری یافت نشد",
     AlreadyExistAccount = "حساب کاربری از قبل وجود دارد",
+    ExpiredCode="کد ارسال شده منقضی شده است",
 }
 
 export enum NotFoundtMessage {
