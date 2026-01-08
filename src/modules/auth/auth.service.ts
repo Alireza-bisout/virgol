@@ -11,6 +11,9 @@ import { AuthtMessage, BadRequestMessage } from 'src/common/enums/message.enum';
 import { OtpEntity } from '../user/entities/otp.entity';
 import { randomInt } from 'crypto';
 import { TokensService } from './tokens.service';
+import { Response } from 'express';
+import { CookieKeys } from 'src/common/enums/cookie.enum';
+import { AuthResponse } from './types/response';
 
 @Injectable()
 export class AuthService {
@@ -23,16 +26,18 @@ export class AuthService {
     ) { }
 
 
-    userExistence(authDto: AuthDto) {
+    async userExistence(authDto: AuthDto, res: Response) {
         const { method, type, username } = authDto
-
+        let result: AuthResponse
         switch (type) {
             case AuthType.Register:
-                return this.register(method, username)
+                result = await this.register(method, username)
+                return this.sendResponse(res, result)
 
             case AuthType.Login:
 
-                return this.login(method, username)
+                result = await this.login(method, username)
+                return this.sendResponse(res, result)
 
 
             default:
@@ -47,11 +52,20 @@ export class AuthService {
         const otp = await this.saveOtp(user.id)
         user.otpId = otp.id
         await this.userRepository.save(user)
+        const token = this.tokenService.createOtpToken({ userId: user.id })
         return {
-            // message: PublicMessage.SendOtp,
-            userId: user.id,
+            token,
             code: otp.code
         }
+    }
+
+    async sendResponse(res: Response, result: AuthResponse) {
+        const { token, code } = result
+        res.cookie(CookieKeys.OTP, token, { httpOnly: true })
+        res.json({
+            // message: PublicMessage.SendOtp
+            code
+        })
     }
 
     async register(method: AuthMethod, username: string) {
@@ -73,9 +87,10 @@ export class AuthService {
         const otp = await this.saveOtp(user.id)
         user.otpId = otp.id
         await this.userRepository.save(user)
+        const token = this.tokenService.createOtpToken({ userId: user.id })
 
         return {
-            userId: user.id,
+            token,
             code: otp.code
         }
     }
