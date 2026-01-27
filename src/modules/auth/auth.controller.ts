@@ -26,7 +26,6 @@ export class AuthController {
 
   @Get('/check-login')
   @ApiBearerAuth("Authorization")
-  // @ApiConsumes(SwaggerConsumes.UrlEncoded, SwaggerConsumes.Json)
   @UseGuards(AuthGuard)
   checkLogin(@Req() req: Request) {
     return req.user;

@@ -5,6 +5,10 @@ import { join } from 'path';
 import { TypeOrmConfig } from 'src/config/typeorm.config';
 import { UserModule } from '../user/user.module';
 import { AuthModule } from '../auth/auth.module';
+import { CategoryModule } from '../category/category.module';
+import { BlogModule } from '../blog/blog.module';
+import { ImageModule } from '../image/image.module';
+import { CustomHttpModule } from '../http/http.module';
 
 @Module({
   imports: [
@@ -13,8 +17,12 @@ import { AuthModule } from '../auth/auth.module';
       envFilePath: join(process.cwd(), '.env')
     }),
     TypeOrmModule.forRoot(TypeOrmConfig()),
+    UserModule,
+    BlogModule,
     AuthModule,
-    UserModule
+    ImageModule,
+    CategoryModule,
+    CustomHttpModule
   ],
   controllers: [],
   providers: [],
