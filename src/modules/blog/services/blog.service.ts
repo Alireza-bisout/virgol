@@ -1,7 +1,7 @@
 import { BadRequestException, forwardRef, Inject, Injectable, NotFoundException, Scope } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { BlogEntity } from '../entities/blog.entity';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { CreateBlogDto, FilterBlogDto, UpdateBlogDto } from '../dto/blog.dto';
 import { createSlug, randomId } from 'src/common/utils/functions.util';
 import { BlogStatus } from '../enum/status.enum';
@@ -28,7 +28,8 @@ export class BlogService {
         @InjectRepository(BlolgBookmarkEntity) private blogBookmarkRepository: Repository<BlolgBookmarkEntity>,
         @Inject(REQUEST) private request,
         private categoryService: CategoryService,
-        private blogCommentService: BlogCommentService
+        private blogCommentService: BlogCommentService,
+        private dataSource: DataSource,
     ) { }
 
     async create(blogDto: CreateBlogDto) {
@@ -271,12 +272,53 @@ export class BlogService {
 
         }
 
+        const queryRunner = this.dataSource.createQueryRunner()
+        await queryRunner.connect()
+        const suggestBlog = await queryRunner.query(`
+            WITH suggested_blogs AS (
+                SELECT 
+                    blog.id,
+                    blog.slug,
+                    blog.title,
+                    blog.description,
+                    blog.image,
+                    json_build_object(
+                        'username', u.username 
+                        'author_name', p.nick_name 
+                        'image', p.image_profile
+                    ) AS author,
+                    array_agg(DISTINCT cat.title) AS categories,
+                    (
+                    SELECT COUNT(*) FROM blog_likes
+                    WHERE blog_likes."blogId" = blog.id
+                    ) AS likes,
+                    (
+                    SELECT COUNT(*) FROM blog_bookmarks
+                    WHERE blog_bookmarks."blogId" = blog.id
+                    ) AS bookmarks,
+                    (
+                    SELECT COUNT(*) FROM blog_comments
+                    WHERE blog_comments."blogId" = blog.id
+                    ) AS comments
+                FROM blog
+                LEFT JOIN public.user u ON blog."authorId" = u.id
+                LEFT JOIN profile p ON p."userId" = u.id
+                LEFT JOIN blog_category bc ON blog.id = bc."blogId"
+                LEFT JOIN category cat ON bc."categoryId" = cat.id
+                GROUP BY blog.id, u.username, p.nick_name, p.image_profile
+                ORDER BY RANDOM()
+                LIMIT 3
+            )
+            SELECT * FROM suggested_blogs
+            
+        `)
 
         return {
             blog,
             isLiked,
             isBookmarked,
-            commentData
+            commentData,
+            suggestBlog
         }
     }
 

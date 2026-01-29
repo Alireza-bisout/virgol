@@ -5,6 +5,9 @@ import { AuthDto, CheckOtpDto } from './dto/auth.dto';
 import { SwaggerConsumes } from 'src/common/enums/swagger-consume.enums';
 import type { Request, Response } from 'express';
 import { AuthGuard } from './guards/auth.guard';
+import { AuthDecorator } from 'src/common/decorators/auth.decorator';
+import { CanAccess } from 'src/common/decorators/role.decorator';
+import { Roles } from 'src/common/enums/roel.enum';
 
 
 @Controller('auth')
@@ -17,7 +20,7 @@ export class AuthController {
   userExistence(@Body() authDto: AuthDto, @Res() res: Response) {
     return this.authService.userExistence(authDto, res);
   }
-  
+
   @Post('/check-otp')
   @ApiConsumes(SwaggerConsumes.UrlEncoded, SwaggerConsumes.Json)
   checkOtp(@Body() checkOtpDto: CheckOtpDto) {
@@ -25,8 +28,8 @@ export class AuthController {
   }
 
   @Get('/check-login')
-  @ApiBearerAuth("Authorization")
-  @UseGuards(AuthGuard)
+  @AuthDecorator()
+  @CanAccess(Roles.Admin, Roles.User)
   checkLogin(@Req() req: Request) {
     return req.user;
   }

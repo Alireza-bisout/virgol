@@ -14,6 +14,7 @@ export enum AuthtMessage {
     TryAgain = "لطفا مجددا تلاش کنید",
     LoginAgain = "مجددا وارد  حساب کاربری شوید",
     LoginIsRequired = "ورود به حساب کاربری الزامی است",
+    Blocked = "حساب کاربری شما مسدود می باشد است لطفا با پشتیبانی در ارتباط باشید"
 }
 
 export enum NotFoundtMessage {
@@ -42,7 +43,11 @@ export enum PublicMessage {
     Bookmark = "مقاله با موفقیت ذخیره شد",
     UnBookmark = "مقاله از لیست مقالات ذخیره شده برداشته شد",
     CreatedComment = "نظر شما با موفقیت ثبت شد",
-    SendOtp = "کد تایید با موفقیت ارسال شد"
+    SendOtp = "کد تایید با موفقیت ارسال شد",
+    Followed = "با موفقیت دنبال شد",
+    UnFollowe = "از لیست دنبال شوندگان حذف شد",
+    Blocked = "حساب کاربری با موفقیت مسدود شد",
+    UnBlock = "حساب کاربری از حالت مسدود خارج شد",
 }
 
 export enum ConflictMessage {

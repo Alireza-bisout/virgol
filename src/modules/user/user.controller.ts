@@ -1,6 +1,6 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Put, UseInterceptors, UploadedFiles, ParseFilePipe, UseGuards, Res } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Put, UseInterceptors, UploadedFiles, ParseFilePipe, UseGuards, Res, ParseIntPipe, Query } from '@nestjs/common';
 import { UserService } from './user.service';
-import { ApiConsumes, ApiTags } from '@nestjs/swagger';
+import { ApiConsumes, ApiParam, ApiTags } from '@nestjs/swagger';
 import { ChangeEmailDto, ChangePhoneDto, ChangeUsernameDto, ProfileDto } from './dto/profile.dto';
 import { SwaggerConsumes } from 'src/common/enums/swagger-consume.enums';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
@@ -10,8 +10,12 @@ import { CookieKeys } from 'src/common/enums/cookie.enum';
 import { CookiesOptionsToken } from 'src/common/utils/cookie.util';
 import express from 'express';
 import { PublicMessage } from 'src/common/enums/message.enum';
-import { CheckOtpDto } from '../auth/dto/auth.dto';
+import { CheckOtpDto, UserBlockpDto } from '../auth/dto/auth.dto';
 import { AuthDecorator } from 'src/common/decorators/auth.decorator';
+import { Pagination } from 'src/common/decorators/pagination.decorator';
+import { PaginationDto } from 'src/common/dtos/pagination.dto';
+import { CanAccess } from 'src/common/decorators/role.decorator';
+import { Roles } from 'src/common/enums/roel.enum';
 
 @Controller('user')
 @ApiTags('User')
@@ -43,6 +47,30 @@ export class UserController {
   @ApiConsumes(SwaggerConsumes.UrlEncoded, SwaggerConsumes.Json)
   profile() {
     return this.userService.profile()
+  }
+
+  @Get("/list")
+  @Pagination()
+  find(@Query() paginationDto: PaginationDto) {
+    return this.userService.find(paginationDto)
+  }
+
+  @Get("/followers")
+  @Pagination()
+  followers(@Query() paginationDto: PaginationDto) {
+    return this.userService.followers(paginationDto)
+  }
+
+  @Get("/following")
+  @Pagination()
+  following(@Query() paginationDto: PaginationDto) {
+    return this.userService.following(paginationDto)
+  }
+
+  @Get("/follow/:followingId")
+  @ApiParam({ name: "followingId" })
+  follow(@Param("followingId", ParseIntPipe) followingId: number) {
+    return this.userService.followToggle(followingId)
   }
 
   @Patch("/change-email")
@@ -79,6 +107,13 @@ export class UserController {
   @ApiConsumes(SwaggerConsumes.UrlEncoded, SwaggerConsumes.Json)
   async verifyPhone(@Body() otpDto: CheckOtpDto) {
     return this.userService.verifyPhone(otpDto.code)
+  }
+
+  @Post("/block")
+  @CanAccess(Roles.Admin)
+  @ApiConsumes(SwaggerConsumes.UrlEncoded, SwaggerConsumes.Json)
+  async block(@Body() blockDto: UserBlockpDto) {
+    return this.userService.blockToggle(blockDto)
   }
 
   @Patch("/change-username")

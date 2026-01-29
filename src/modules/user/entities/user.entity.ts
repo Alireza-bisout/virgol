@@ -8,6 +8,9 @@ import { BlolgLikesEntity } from "src/modules/blog/entities/like.entity";
 import { BlolgBookmarkEntity } from "src/modules/blog/entities/bookmark.entity";
 import { BlogCommentEntity } from "src/modules/blog/entities/comment.entity";
 import { ImageEntity } from "src/modules/image/entities/image.entity";
+import { Roles } from "src/common/enums/roel.enum";
+import { FollowEntity } from "./follow.entity";
+
 
 @Entity(EntityNames.User)
 export class UserEntity extends BaseEntity {
@@ -20,6 +23,12 @@ export class UserEntity extends BaseEntity {
 
     @Column({ unique: true, nullable: true })
     email: string;
+
+    @Column({ default: Roles.User })
+    role: string;
+
+    @Column({ type: String, nullable: true })
+    status: string | null;
 
     @Column({ nullable: true })
     new_email: string;
@@ -46,7 +55,7 @@ export class UserEntity extends BaseEntity {
     @Column({ nullable: true })
     profileId: number;
 
-    @OneToOne(() => OtpEntity, (profile) => profile.user, { nullable: true })
+    @OneToOne(() => ProfileEntity, (profile) => profile.user, { nullable: true })
     @JoinColumn({ name: 'profileId' })
     profile: ProfileEntity
 
@@ -58,6 +67,12 @@ export class UserEntity extends BaseEntity {
 
     @OneToMany(() => BlogCommentEntity, image => image.user)
     images: ImageEntity[]
+
+    @OneToMany(() => FollowEntity, follow => follow.following)
+    followers: FollowEntity[]
+
+    @OneToMany(() => FollowEntity, follow => follow.follower)
+    following: FollowEntity[]
 
     @OneToMany(() => BlolgLikesEntity, like => like.user)
     blog_likes: BlolgLikesEntity[]

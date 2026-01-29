@@ -1,8 +1,8 @@
-import { BadRequestException, ConflictException, Inject, Injectable, Scope, UnauthorizedException } from '@nestjs/common';
-import {  ProfileDto } from './dto/profile.dto';
+import { BadRequestException, ConflictException, Inject, Injectable, NotAcceptableException, Scope, UnauthorizedException } from '@nestjs/common';
+import { ProfileDto } from './dto/profile.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { UserEntity } from './entities/user.entity';
-import { Repository } from 'typeorm';
+import { Entity, Repository } from 'typeorm';
 import { ProfileEntity } from './entities/profile.entity';
 import { REQUEST } from '@nestjs/core';
 import { isDate } from 'class-validator';
@@ -14,6 +14,12 @@ import { TokensService } from '../auth/tokens.service';
 import { OtpEntity } from './entities/otp.entity';
 import { CookieKeys } from 'src/common/enums/cookie.enum';
 import { AuthMethod } from '../auth/enums/method.enums';
+import { FollowEntity } from './entities/follow.entity';
+import { EntityNames } from 'src/common/enums/entity.enum';
+import { PaginationDto } from 'src/common/dtos/pagination.dto';
+import { paginationGenerator, paginationSolver } from 'src/common/utils/pagination.util';
+import { UserBlockpDto } from '../auth/dto/auth.dto';
+import { UserStatus } from './enum/status.enum';
 
 @Injectable({ scope: Scope.REQUEST })
 export class UserService {
@@ -22,6 +28,7 @@ export class UserService {
     @InjectRepository(UserEntity) private userRepository: Repository<UserEntity>,
     @InjectRepository(ProfileEntity) private profileRepository: Repository<ProfileEntity>,
     @InjectRepository(OtpEntity) private otpRepository: Repository<OtpEntity>,
+    @InjectRepository(FollowEntity) private followRepository: Repository<FollowEntity>,
     @Inject(REQUEST) private request,
     private authService: AuthService,
     private tokenService: TokensService
@@ -73,12 +80,96 @@ export class UserService {
     }
   }
 
+  async find(paginationDto: PaginationDto) {
+    const { page, limit, skip } = paginationSolver(paginationDto)
+    const [users, count] = await this.userRepository.findAndCount({
+      where: {},
+      skip,
+      take: limit
+    })
+
+    return {
+      pagination: paginationGenerator(count, page, limit),
+      users
+    }
+  }
+
+  async followers(paginationDto: PaginationDto) {
+    const { page, limit, skip } = paginationSolver(paginationDto)
+    const { id: userId } = this.request.user
+
+    const [followers, count] = await this.followRepository.findAndCount({
+      where: { followingId: userId },
+      relations: {
+        follower: {
+          profile: true
+        }
+      },
+      select: {
+        id: true,
+        follower: {
+          id: true,
+          profile: {
+            id: true,
+            nick_name: true,
+            bio: true,
+            image_profile: true,
+            bg_profile: true
+          }
+        }
+      },
+      skip,
+      take: limit
+    })
+
+    return {
+      pagination: paginationGenerator(count, page, limit),
+      followers
+    }
+  }
+
+  async following(paginationDto: PaginationDto) {
+    const { page, limit, skip } = paginationSolver(paginationDto)
+    const { id: userId } = this.request.user
+
+    const [following, count] = await this.followRepository.findAndCount({
+      where: { followerId: userId },
+      relations: {
+        following: {
+          profile: true
+        }
+      },
+      select: {
+        id: true,
+        following: {
+          id: true,
+          profile: {
+            id: true,
+            nick_name: true,
+            bio: true,
+            image_profile: true,
+            bg_profile: true
+          }
+        }
+      },
+      skip,
+      take: limit
+    })
+
+    return {
+      pagination: paginationGenerator(count, page, limit),
+      following
+    }
+  }
+
   profile() {
     const { id } = this.request.user
-    return this.userRepository.findOne({
-      where: { id },
-      relations: ['profile']
-    })
+    return this.userRepository.createQueryBuilder(EntityNames.User)
+      .where({ id })
+      .leftJoinAndSelect("user.profile", "profile")
+      .loadRelationCountAndMap("user.followers", "user.followers")
+      .loadRelationCountAndMap("user.following", "user.following")
+      .getOne()
   }
 
   async changeEmail(email: string) {
@@ -174,5 +265,44 @@ export class UserService {
     if (otp.code !== code) throw new BadRequestException(AuthtMessage.LoginAgain)
     return otp
   }
+
+  async followToggle(followingId: number) {
+    const { id: userId } = this.request.user
+    const following = await this.userRepository.findOneBy({ id: followingId })
+    if (!following) throw new NotAcceptableException(NotFoundtMessage.NotFoundUser)
+    const isFollowing = await this.followRepository.findOneBy({ followingId, followerId: userId })
+    let message = PublicMessage.Followed
+    if (isFollowing) {
+      let message = PublicMessage.UnFollowe
+      await this.followRepository.remove(isFollowing)
+    } else {
+      await this.followRepository.insert({ followingId, followerId: userId })
+    }
+
+    return {
+      message
+    }
+  }
+
+  async blockToggle(blockDto: UserBlockpDto) {
+    const { userId } = blockDto
+
+    const user = await this.userRepository.findOneBy({ id: userId })
+    if (!user) throw new NotAcceptableException(NotFoundtMessage.NotFoundUser)
+
+
+    let message = PublicMessage.Blocked
+    if (user.status === UserStatus.Block) {
+      message = PublicMessage.UnBlock
+      await this.userRepository.update({ id: userId }, { status: null })
+    } else {
+      await this.userRepository.update({ id: userId }, { status: UserStatus.Block })
+    }
+
+    return {
+      message
+    }
+  }
+
 
 }
